@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sword, Trophy, Zap, Target, Award, Clock, Lock } from 'lucide-react';
+import { Sword, Trophy, Award, Clock, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
