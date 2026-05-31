@@ -24,3 +24,11 @@ export const playerAPI = {
     return res.json();
   }
 };
+
+export const questAPI = {
+  getQuests: async () => {
+    const res = await fetch('/api/quests');
+    if (!res.ok) throw new Error('Failed to fetch quests');
+    return res.json();
+  }
+};
