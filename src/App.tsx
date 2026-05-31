@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sword, Trophy, Award, Clock, Lock } from 'lucide-react';
+import { Sword, Trophy, Zap, Target, Award, Clock, Lock, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
@@ -13,12 +13,14 @@ function App() {
     total_xp_earned: 0,
     xp_to_next: 100,
     username: "Adventurer",
+    gold: 50
   });
 
   const [quests, setQuests] = useState<any[]>([]);
   const [achievements, setAchievements] = useState<any[]>([]);
+  const [shopItems, setShopItems] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'achievements' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'achievements' | 'history' | 'shop'>('dashboard');
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,15 +30,17 @@ function App() {
 
   const loadAllData = async () => {
     try {
-      const [progressData, questsData, achievementsData] = await Promise.all([
+      const [progressData, questsData, achievementsData, shopData] = await Promise.all([
         playerAPI.getProgress(),
-        fetch('/api/quests').then(res => res.json()),
-        fetch('/api/achievements').then(res => res.json()),
+        fetch('/api/quests').then(r => r.json()),
+        fetch('/api/achievements').then(r => r.json()),
+        fetch('/api/shop').then(r => r.json()),           // ← New
       ]);
 
       setProgress(progressData);
       setQuests(questsData);
       setAchievements(achievementsData);
+      setShopItems(shopData);                            // ← New
     } catch (err) {
       console.error("Failed to load data:", err);
     }
@@ -48,7 +52,7 @@ function App() {
     setIsLoading(true);
     try {
       const result = await playerAPI.gainXP(quest.xp_reward);
-      
+
       setProgress(result.progress);
 
       // Add to history
@@ -74,6 +78,15 @@ function App() {
     }
   };
 
+  const purchaseItem = async (item: any) => {
+    if ((progress.gold || 50) < item.price) {
+      alert("Not enough Gold!");
+      return;
+    }
+    alert(`Purchased ${item.name} for ${item.price} Gold! (Mock for now)`);
+    setProgress(prev => ({ ...prev, gold: (prev.gold || 50) - item.price }));
+  };
+
   return (
     <div className="flex min-h-screen bg-zinc-950 text-white">
       <Sidebar />
@@ -92,9 +105,14 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-zinc-900 px-5 py-2.5 rounded-2xl">
-            <Trophy className="w-5 h-5 text-amber-400" />
-            <span className="font-mono text-lg">{progress.quests_completed}</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 bg-zinc-900 px-5 py-2.5 rounded-2xl">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              <span className="font-mono">{progress.quests_completed}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-amber-500/10 text-amber-400 px-5 py-2.5 rounded-2xl font-medium">
+              💰 <span className="font-mono text-lg">{progress.gold || 50}</span>
+            </div>
           </div>
         </div>
 
@@ -117,15 +135,15 @@ function App() {
         <div className="flex gap-10 border-b border-zinc-800 mb-8">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Sword },
+            { id: 'shop', label: 'Shop', icon: ShoppingBag },
             { id: 'achievements', label: 'Achievements', icon: Award },
             { id: 'history', label: 'History', icon: Clock },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-4 text-lg font-medium transition-all relative ${
-                activeTab === tab.id ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
-              }`}
+              className={`flex items-center gap-2 pb-4 text-lg font-medium transition-all relative ${activeTab === tab.id ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
             >
               <tab.icon className="w-5 h-5" />
               {tab.label}
@@ -150,11 +168,10 @@ function App() {
                     whileTap={isUnlocked ? { scale: 0.98 } : {}}
                     onClick={() => isUnlocked && completeQuest(quest)}
                     disabled={!isUnlocked || isLoading}
-                    className={`p-6 rounded-3xl border text-left transition-all ${
-                      isUnlocked
-                        ? 'border-amber-500/30 hover:border-amber-500 bg-zinc-900 hover:bg-zinc-800'
-                        : 'border-zinc-800 opacity-60 cursor-not-allowed'
-                    }`}
+                    className={`p-6 rounded-3xl border text-left transition-all ${isUnlocked
+                      ? 'border-amber-500/30 hover:border-amber-500 bg-zinc-900 hover:bg-zinc-800'
+                      : 'border-zinc-800 opacity-60 cursor-not-allowed'
+                      }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -229,6 +246,36 @@ function App() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Shop Tab */}
+        {activeTab === 'shop' && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-6">Shop</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {shopItems.map((item) => (
+                <motion.div
+                  key={item.id}
+                  className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 hover:border-amber-500/50 transition-all"
+                >
+                  <div className="text-4xl mb-4">{item.icon}</div>
+                  <h3 className="text-xl font-semibold">{item.name}</h3>
+                  <p className="text-zinc-400 text-sm mt-2">{item.description}</p>
+                  <div className="mt-6 flex justify-between items-center">
+                    <span className="text-amber-400 font-mono text-xl">💰 {item.price}</span>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => purchaseItem(item)}
+                      className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-2xl"
+                    >
+                      Buy
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         )}
       </div>
