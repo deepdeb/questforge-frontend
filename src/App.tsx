@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sword, Trophy, Zap, Target, Award, Clock, Lock, ShoppingBag } from 'lucide-react';
+import { Sword, Trophy, Award, Clock, Lock, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
@@ -19,9 +19,11 @@ function App() {
   const [quests, setQuests] = useState<any[]>([]);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [shopItems, setShopItems] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'achievements' | 'history' | 'shop'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'achievements' | 'history' | 'shop' | 'inventory'>('dashboard');
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [recentUnlocks, setRecentUnlocks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -34,13 +36,23 @@ function App() {
         playerAPI.getProgress(),
         fetch('/api/quests').then(r => r.json()),
         fetch('/api/achievements').then(r => r.json()),
-        fetch('/api/shop').then(r => r.json()),           // ← New
+        fetch('/api/shop').then(r => r.json()),
       ]);
 
       setProgress(progressData);
       setQuests(questsData);
       setAchievements(achievementsData);
-      setShopItems(shopData);                            // ← New
+      setShopItems(shopData);
+
+      if (progressData.inventory) {
+        try {
+          setInventory(JSON.parse(progressData.inventory));
+        } catch {
+          setInventory([]);
+        }
+      }
+
+      console.log("Progress data from API:", progressData);
     } catch (err) {
       console.error("Failed to load data:", err);
     }
@@ -71,6 +83,11 @@ function App() {
 
       // Refresh data
       loadAllData();
+      setTimeout(() => {
+        fetch('/api/achievements')
+          .then(r => r.json())
+          .then(checkForNewUnlocks);
+      }, 800);
     } catch (err) {
       console.error("Failed to complete quest:", err);
     } finally {
@@ -79,12 +96,41 @@ function App() {
   };
 
   const purchaseItem = async (item: any) => {
-    if ((progress.gold || 50) < item.price) {
-      alert("Not enough Gold!");
-      return;
+    try {
+      const res = await fetch('/api/shop/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: item.id })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.detail || "Purchase failed");
+        return;
+      }
+
+      // Update local state
+      setProgress(prev => ({ ...prev, gold: data.new_gold }));
+      alert(data.message);
+
+      // Refresh shop and player data
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to process purchase");
     }
-    alert(`Purchased ${item.name} for ${item.price} Gold! (Mock for now)`);
-    setProgress(prev => ({ ...prev, gold: (prev.gold || 50) - item.price }));
+  };
+
+  const checkForNewUnlocks = (newAchievements: any[]) => {
+    const newlyUnlocked = newAchievements.filter(a => a.unlocked);
+    // Simple alert for now - can be improved later
+    newlyUnlocked.forEach(ach => {
+      if (!recentUnlocks.some(r => r.id === ach.id)) {
+        alert(`🎉 Achievement Unlocked: ${ach.name}`);
+      }
+    });
+    setRecentUnlocks(newlyUnlocked);
   };
 
   return (
@@ -111,7 +157,7 @@ function App() {
               <span className="font-mono">{progress.quests_completed}</span>
             </div>
             <div className="flex items-center gap-2 bg-amber-500/10 text-amber-400 px-5 py-2.5 rounded-2xl font-medium">
-              💰 <span className="font-mono text-lg">{progress.gold || 50}</span>
+              💰 <span className="font-mono text-lg">{progress.gold}</span>
             </div>
           </div>
         </div>
@@ -136,6 +182,7 @@ function App() {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Sword },
             { id: 'shop', label: 'Shop', icon: ShoppingBag },
+            { id: 'inventory', label: 'Inventory', icon: Trophy },
             { id: 'achievements', label: 'Achievements', icon: Award },
             { id: 'history', label: 'History', icon: Clock },
           ].map((tab) => (
@@ -276,6 +323,33 @@ function App() {
                 </motion.div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Inventory Tab */}
+        {activeTab === 'inventory' && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-6">Inventory</h2>
+            {inventory.length === 0 ? (
+              <div className="text-center py-20 text-zinc-500">
+                Your inventory is empty. Visit the Shop to buy items!
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {inventory.map((item: any, index: number) => (
+                  <motion.div
+                    key={index}
+                    className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6"
+                  >
+                    <div className="text-5xl mb-4">{item.icon}</div>
+                    <h3 className="font-semibold">{item.name}</h3>
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Purchased {new Date(item.purchased_at).toLocaleDateString()}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

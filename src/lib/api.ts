@@ -8,6 +8,7 @@ export interface PlayerProgress {
   xp_to_next: number;
   username?: string;
   gold?: number;
+  inventory?: string;
 }
 
 export const playerAPI = {
