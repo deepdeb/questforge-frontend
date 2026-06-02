@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sword, Trophy, Award, Clock, Lock, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { playerAPI } from './lib/api';
+import { historyAPI, playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
 import Sidebar from './components/Sidebar';
 
@@ -32,17 +32,19 @@ function App() {
 
   const loadAllData = async () => {
     try {
-      const [progressData, questsData, achievementsData, shopData] = await Promise.all([
+      const [progressData, questsData, achievementsData, shopData, historyData] = await Promise.all([
         playerAPI.getProgress(),
         fetch('/api/quests').then(r => r.json()),
         fetch('/api/achievements').then(r => r.json()),
         fetch('/api/shop').then(r => r.json()),
+        historyAPI.getHistory(),
       ]);
 
       setProgress(progressData);
       setQuests(questsData);
       setAchievements(achievementsData);
       setShopItems(shopData);
+      setHistory(historyData);
 
       // Parse inventory from progressData
       if (progressData.inventory) {
@@ -67,17 +69,13 @@ function App() {
 
     setIsLoading(true);
     try {
-      const result = await playerAPI.gainXP(quest.xp_reward);
+      const result = await playerAPI.gainXP(quest.xp_reward, quest.title);
 
       setProgress(result.progress);
 
-      // Add to history
-      setHistory(prev => [{
-        id: Date.now(),
-        quest: quest.title,
-        xp: quest.xp_reward,
-        timestamp: new Date().toISOString()
-      }, ...prev]);
+      // Refresh history from backend
+      const updatedHistory = await historyAPI.getHistory();
+      setHistory(updatedHistory);
 
       // Level up check
       if (result.progress.level > progress.level) {
@@ -297,12 +295,12 @@ function App() {
                     className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex justify-between items-center"
                   >
                     <div>
-                      <div className="font-medium">{entry.quest}</div>
+                      <div className="font-medium">{entry.quest_title}</div>
                       <div className="text-xs text-zinc-500 mt-1">
-                        {new Date(entry.timestamp).toLocaleString()}
+                        {new Date(entry.completed_at).toLocaleString()}
                       </div>
                     </div>
-                    <div className="text-emerald-400 font-mono">+{entry.xp} XP</div>
+                    <div className="text-emerald-400 font-mono">+{entry.xp_rewarded} XP</div>
                   </motion.div>
                 ))}
               </div>
