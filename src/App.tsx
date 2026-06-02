@@ -44,15 +44,19 @@ function App() {
       setAchievements(achievementsData);
       setShopItems(shopData);
 
+      // Parse inventory from progressData
       if (progressData.inventory) {
         try {
-          setInventory(JSON.parse(progressData.inventory));
-        } catch {
+          const parsedInventory = JSON.parse(progressData.inventory);
+          setInventory(parsedInventory);
+          console.log("Inventory loaded:", parsedInventory);
+        } catch (err) {
+          console.error("Failed to parse inventory:", err);
           setInventory([]);
         }
+      } else {
+        setInventory([]);
       }
-
-      console.log("Progress data from API:", progressData);
     } catch (err) {
       console.error("Failed to load data:", err);
     }
@@ -116,6 +120,16 @@ function App() {
 
       // Refresh shop and player data
       loadAllData();
+
+      // Force inventory refresh from the updated player data
+      const updatedProgress = await playerAPI.getProgress();
+      if (updatedProgress.inventory) {
+        try {
+          setInventory(JSON.parse(updatedProgress.inventory));
+        } catch {
+          setInventory([]);
+        }
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to process purchase");
