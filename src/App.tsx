@@ -84,7 +84,7 @@ function App() {
       }
 
       // Refresh data
-      loadAllData();
+      // loadAllData();
       setTimeout(() => {
         fetch('/api/achievements')
           .then(r => r.json())
