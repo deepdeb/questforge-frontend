@@ -4,8 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { historyAPI, playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
 import Sidebar from './components/Sidebar';
+import { useToast } from './context/ToastContext';
+import { QuestCard } from './components/QuestCard';
+import { Achievements } from './components/Achievements';
+import { History } from './components/History';
+import { Shop } from './components/Shop';
+import { Inventory } from './components/Inventory';
 
 function App() {
+  const { showToast } = useToast();
   const [progress, setProgress] = useState<PlayerProgress>({
     level: 1,
     xp: 0,
@@ -108,13 +115,13 @@ function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.detail || "Purchase failed");
+        showToast(data.detail || "Purchase failed", 'error');
         return;
       }
 
       // Update local state
       setProgress(prev => ({ ...prev, gold: data.new_gold }));
-      alert(data.message);
+      showToast(data.message, 'success');
 
       // Refresh shop and player data
       loadAllData();
@@ -130,16 +137,15 @@ function App() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to process purchase");
+      showToast("Failed to process purchase", 'error');
     }
   };
 
   const checkForNewUnlocks = (newAchievements: any[]) => {
     const newlyUnlocked = newAchievements.filter(a => a.unlocked);
-    // Simple alert for now - can be improved later
     newlyUnlocked.forEach(ach => {
       if (!recentUnlocks.some(r => r.id === ach.id)) {
-        alert(`🎉 Achievement Unlocked: ${ach.name}`);
+        showToast(`Achievement Unlocked: ${ach.name}`, 'achievement');
       }
     });
     setRecentUnlocks(newlyUnlocked);
@@ -218,39 +224,15 @@ function App() {
           <div>
             <h2 className="text-2xl font-semibold mb-6">Available Quests</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {quests.map((quest) => {
-                const isUnlocked = progress.level >= quest.required_level;
-                return (
-                  <motion.button
-                    key={quest.id}
-                    whileHover={isUnlocked ? { scale: 1.02, y: -2 } : {}}
-                    whileTap={isUnlocked ? { scale: 0.98 } : {}}
-                    onClick={() => isUnlocked && completeQuest(quest)}
-                    disabled={!isUnlocked || isLoading}
-                    className={`p-6 rounded-3xl border text-left transition-all ${isUnlocked
-                      ? 'border-amber-500/30 hover:border-amber-500 bg-zinc-900 hover:bg-zinc-800'
-                      : 'border-zinc-800 opacity-60 cursor-not-allowed'
-                      }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="font-semibold text-lg">{quest.title}</div>
-                        <p className="text-sm text-zinc-400 mt-1 pr-4">{quest.description}</p>
-                      </div>
-                      {!isUnlocked && <Lock className="w-5 h-5 text-zinc-500 mt-1" />}
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between">
-                      <span className="text-emerald-400 font-mono text-xl">+{quest.xp_reward} XP</span>
-                      {quest.required_level > 1 && (
-                        <span className="text-xs px-3 py-1 bg-zinc-800 text-zinc-400 rounded-full">
-                          Level {quest.required_level}+
-                        </span>
-                      )}
-                    </div>
-                  </motion.button>
-                );
-              })}
+              {quests.map((quest) => (
+                <QuestCard
+                  key={quest.id}
+                  quest={quest}
+                  isUnlocked={progress.level >= quest.required_level}
+                  onComplete={() => completeQuest(quest)}
+                  isLoading={isLoading}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -259,23 +241,7 @@ function App() {
         {activeTab === 'achievements' && (
           <div>
             <h2 className="text-2xl font-semibold mb-6">Achievements</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {achievements.map((ach) => (
-                <motion.div
-                  key={ach.id}
-                  className={`p-6 rounded-3xl border ${ach.unlocked ? 'border-amber-500 bg-amber-500/5' : 'border-zinc-800'}`}
-                >
-                  <div className="text-5xl mb-4">{ach.icon}</div>
-                  <h3 className="font-semibold text-xl">{ach.name}</h3>
-                  <p className="text-zinc-400 mt-2">{ach.description}</p>
-                  {ach.unlocked ? (
-                    <div className="text-emerald-400 mt-4 text-sm">✓ Unlocked</div>
-                  ) : (
-                    <div className="text-xs text-zinc-500 mt-4">Unlocks at Level {ach.required_level}</div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+            <Achievements achievements={achievements} />
           </div>
         )}
 
@@ -283,28 +249,7 @@ function App() {
         {activeTab === 'history' && (
           <div>
             <h2 className="text-2xl font-semibold mb-6">Quest History</h2>
-            {history.length === 0 ? (
-              <div className="text-center py-16 text-zinc-500">Complete some quests to see them here.</div>
-            ) : (
-              <div className="space-y-3">
-                {history.map((entry) => (
-                  <motion.div
-                    key={entry.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex justify-between items-center"
-                  >
-                    <div>
-                      <div className="font-medium">{entry.quest_title}</div>
-                      <div className="text-xs text-zinc-500 mt-1">
-                        {new Date(entry.completed_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-emerald-400 font-mono">+{entry.xp_rewarded} XP</div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            <History entries={history} />
           </div>
         )}
 
@@ -312,29 +257,7 @@ function App() {
         {activeTab === 'shop' && (
           <div>
             <h2 className="text-2xl font-semibold mb-6">Shop</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {shopItems.map((item) => (
-                <motion.div
-                  key={item.id}
-                  className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 hover:border-amber-500/50 transition-all"
-                >
-                  <div className="text-4xl mb-4">{item.icon}</div>
-                  <h3 className="text-xl font-semibold">{item.name}</h3>
-                  <p className="text-zinc-400 text-sm mt-2">{item.description}</p>
-                  <div className="mt-6 flex justify-between items-center">
-                    <span className="text-amber-400 font-mono text-xl">💰 {item.price}</span>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => purchaseItem(item)}
-                      className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-2xl"
-                    >
-                      Buy
-                    </motion.button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <Shop items={shopItems} onPurchase={purchaseItem} />
           </div>
         )}
 
@@ -342,26 +265,7 @@ function App() {
         {activeTab === 'inventory' && (
           <div>
             <h2 className="text-2xl font-semibold mb-6">Inventory</h2>
-            {inventory.length === 0 ? (
-              <div className="text-center py-20 text-zinc-500">
-                Your inventory is empty. Visit the Shop to buy items!
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {inventory.map((item: any, index: number) => (
-                  <motion.div
-                    key={index}
-                    className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6"
-                  >
-                    <div className="text-5xl mb-4">{item.icon}</div>
-                    <h3 className="font-semibold">{item.name}</h3>
-                    <p className="text-xs text-zinc-500 mt-2">
-                      Purchased {new Date(item.purchased_at).toLocaleDateString()}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            <Inventory items={inventory} />
           </div>
         )}
       </div>
