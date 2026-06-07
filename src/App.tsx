@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sword, Trophy, Award, Clock, Lock, ShoppingBag } from 'lucide-react';
+import { Sword, Trophy, Award, Clock, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { historyAPI, playerAPI } from './lib/api';
 import type { PlayerProgress } from './lib/api';
@@ -31,13 +31,14 @@ function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'achievements' | 'history' | 'shop' | 'inventory'>('dashboard');
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [recentUnlocks, setRecentUnlocks] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadAllData();
   }, []);
 
   const loadAllData = async () => {
+    setIsLoading(true);
     try {
       const [progressData, questsData, achievementsData, shopData, historyData] = await Promise.all([
         playerAPI.getProgress(),
@@ -68,6 +69,9 @@ function App() {
       }
     } catch (err) {
       console.error("Failed to load data:", err);
+      showToast("Failed to load game data", 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,6 +154,18 @@ function App() {
     });
     setRecentUnlocks(newlyUnlocked);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-zinc-950 text-white items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <p className="text-xl font-medium">Entering the realm...</p>
+          <p className="text-zinc-500 mt-2">Forging your adventure</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-white">
