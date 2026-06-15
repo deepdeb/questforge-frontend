@@ -52,7 +52,7 @@ export const QuestCard = ({ quest, isUnlocked, onComplete, isLoading }: QuestCar
   return (
     <>
       <motion.div
-        className={`p-6 rounded-3xl border text-left transition-all bg-zinc-900 flex flex-col h-full min-h-[260px] ${
+        className={`p-6 rounded-3xl border text-left transition-all bg-zinc-900 flex flex-col h-full min-h-65 ${
           isUnlocked ? 'border-amber-500/30 hover:border-amber-500' : 'border-zinc-800 opacity-60'
         }`}
         whileHover={isUnlocked ? { scale: 1.01 } : {}}
@@ -65,7 +65,7 @@ export const QuestCard = ({ quest, isUnlocked, onComplete, isLoading }: QuestCar
               <p className="text-xs text-amber-400/70 mt-2 italic">{quest.story_context}</p>
             )}
           </div>
-          {!isUnlocked && <Lock className="w-5 h-5 text-zinc-500 mt-1 flex-shrink-0" />}
+          {!isUnlocked && <Lock className="w-5 h-5 text-zinc-500 mt-1 shrink-0" />}
         </div>
 
         <div className="mt-auto mb-6">
