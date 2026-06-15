@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState, useEffect } from 'react';
 import { Sword, Trophy, Award, Clock, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -75,38 +76,46 @@ function App() {
     }
   };
 
-  const completeQuest = async (quest: any) => {
-    if (progress.level < quest.required_level) return;
+  const completeQuest = async (quest: any, chosenChoice?: any) => {
+  if (progress.level < quest.required_level) return;
 
-    setIsLoading(true);
-    try {
-      const result = await playerAPI.gainXP(quest.xp_reward, quest.title);
+  setIsLoading(true);
+  try {
+    const xpToGain = chosenChoice ? chosenChoice.xp_reward : quest.xp_reward;
+    const goldToGain = chosenChoice ? chosenChoice.gold_reward || 0 : 0;
 
-      setProgress(result.progress);
+    const result = await playerAPI.gainXP(xpToGain, quest.title, goldToGain);
 
-      // Refresh history from backend
-      const updatedHistory = await historyAPI.getHistory();
-      setHistory(updatedHistory);
+    setProgress(result.progress);
 
-      // Level up check
-      if (result.progress.level > progress.level) {
-        setShowLevelUp(true);
-        setTimeout(() => setShowLevelUp(false), 2400);
-      }
+    const updatedHistory = await historyAPI.getHistory();
+    setHistory(updatedHistory);
 
-      // Refresh data
-      // loadAllData();
-      setTimeout(() => {
-        fetch('/api/achievements')
-          .then(r => r.json())
-          .then(checkForNewUnlocks);
-      }, 800);
-    } catch (err) {
-      console.error("Failed to complete quest:", err);
-    } finally {
-      setIsLoading(false);
+    if (result.progress.level > progress.level) {
+      setShowLevelUp(true);
+      setTimeout(() => setShowLevelUp(false), 2400);
     }
-  };
+
+    // Refresh achievements
+    setTimeout(() => {
+      fetch('/api/achievements')
+        .then(r => r.json())
+        .then(checkForNewUnlocks);
+    }, 800);
+
+    showToast(
+      chosenChoice 
+        ? `Choice made: ${chosenChoice.text}` 
+        : `Quest completed: ${quest.title}`,
+      'success'
+    );
+  } catch (err) {
+    console.error("Failed to complete quest:", err);
+    showToast("Failed to complete quest", 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const purchaseItem = async (item: any) => {
     try {
@@ -245,7 +254,7 @@ function App() {
                   key={quest.id}
                   quest={quest}
                   isUnlocked={progress.level >= quest.required_level}
-                  onComplete={() => completeQuest(quest)}
+                  onComplete={completeQuest}
                   isLoading={isLoading}
                 />
               ))}

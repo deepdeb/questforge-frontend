@@ -1,3 +1,4 @@
+// src/lib/api.ts
 const API_BASE = '/api';
 
 export interface PlayerProgress {
@@ -18,10 +19,17 @@ export const playerAPI = {
     return res.json();
   },
 
-  gainXP: async (amount: number = 25, questTitle: string = ""): Promise<{ progress: PlayerProgress }> => {
-    const res = await fetch(`${API_BASE}/player/gain-xp?amount=${amount}&quest_title=${encodeURIComponent(questTitle)}`, {
-      method: 'POST',
-    });
+  gainXP: async (
+    amount: number = 25, 
+    questTitle: string = "", 
+    goldReward: number = 0     // ← New parameter
+  ): Promise<{ progress: PlayerProgress }> => {
+    const url = new URL(`${API_BASE}/player/gain-xp`, window.location.origin);
+    url.searchParams.append('amount', amount.toString());
+    if (questTitle) url.searchParams.append('quest_title', questTitle);
+    if (goldReward > 0) url.searchParams.append('gold_reward', goldReward.toString());
+
+    const res = await fetch(url.toString(), { method: 'POST' });
     if (!res.ok) throw new Error('Failed to gain XP');
     return res.json();
   }
